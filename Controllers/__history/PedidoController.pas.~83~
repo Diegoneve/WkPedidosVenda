@@ -1,0 +1,158 @@
+unit PedidoController;
+
+interface
+
+uses
+  System.Generics.Collections, Model, FireDAC.Comp.Client,
+  FireDAC.Stan.Intf, FireDAC.Stan.Option,
+  FireDAC.Stan.Param, FireDAC.Stan.Error, FireDAC.DatS, FireDAC.Phys.Intf,
+  FireDAC.DApt.Intf, FireDAC.Stan.Async, FireDAC.DApt, FireDAC.UI.Intf,
+  FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Phys, FireDAC.VCLUI.Wait,
+  Data.DB, FireDAC.Comp.DataSet, dmConexao;
+
+Type
+  TPedidosController = class
+  private
+    FDConnection : TFDConnection;
+  public
+    constructor Create(AConnection: TFDConnection);
+    procedure GravarPedido(Pedido: TPedidoDadosGerais; Produtos: TList<TPedidosProdutos>);
+    procedure CarregarPedido(NumeroPedido: Integer; out Pedido: TPedidoDadosGerais; Produtos: TList<TPedidosProdutos>);
+    procedure CancelarPedido(NumeroPedido: Integer);
+    procedure Alertas(Titulo, Mensagem : string);
+  end;
+
+implementation
+ { TPedidoController }
+{ TPedidosController }
+
+uses
+  SysUtils;
+
+procedure TPedidosController.CancelarPedido(NumeroPedido: Integer);
+var
+  FQuery: TFDQuery;
+begin
+  FQuery := TFDQuery.Create(nil);
+  try    
+//    FDConnection := dmConexao.dtmConexao.FDConnection;
+    FQuery.Connection := FDConnection;
+
+    FDConnection.StartTransaction;
+
+    try
+      // Exclui os produtos do pedido
+      FQuery.SQL.Text := 'DELETE FROM pedidosprodutos WHERE NumeroPedido = :Numero';
+      FQuery.ParamByName('Numero').AsInteger := NumeroPedido;
+      FQuery.ExecSQL;
+      
+      // Exclui o pedidodadosgerais
+      FQuery.SQL.Text := 'DELETE FROM pedidodadosgerais WHERE NumeroPedido = :Numero';
+      FQuery.ParamByName('Numero').AsInteger := NumeroPedido;
+      FQuery.ExecSQL;
+      FDConnection.Commit;
+    except
+      FDConnection.Rollback;
+      raise;
+    end;
+  finally
+    FQuery.Free;
+  end;
+end;
+
+procedure TPedidosController.CarregarPedido(NumeroPedido: Integer; out Pedido: TPedidoDadosGerais; Produtos: TList<TPedidosProdutos>);
+var
+  FQuery: TFDQuery;
+  Produto: TPedidosProdutos;
+begin
+  FQuery := TFDQuery.Create(nil);
+  try
+    FDConnection := dmConexao.dtmConexao.conexao2;  
+    FQuery.Connection := FDConnection;
+    
+    // Carrega os pedidodadosgerais
+    FQuery.SQL.Text := 'SELECT * FROM pedidodadosgerais WHERE NumeroPedido = :Numero';
+    FQuery.ParamByName('Numero').AsInteger := NumeroPedido;
+    FQuery.Open;
+    
+    if not FQuery.IsEmpty then
+    begin
+      Pedido := TPedidoDadosGerais.Create;
+      Pedido.NumeroPedido  := FQuery.FieldByName('NumeroPedido').AsInteger;
+      Pedido.DataEmissao   := FQuery.FieldByName('DataEmissao').AsDateTime;
+      Pedido.CodigoCliente := FQuery.FieldByName('CodigoCliente').AsInteger;
+      Pedido.ValorTotal    := FQuery.FieldByName('ValorTotal').AsFloat;
+      
+      // Carrega os pedidosprodutos
+      FQuery.SQL.Text := 'SELECT * FROM pedidosprodutos WHERE NumeroPedido = :Numero';
+      FQuery.ParamByName('Numero').AsInteger := NumeroPedido;
+      FQuery.Open;
+      
+      while not FQuery.Eof do
+      begin
+        Produto := TPedidosProdutos.Create;
+        Produto.Id            := FQuery.FieldByName('Id').AsInteger;
+        Produto.NumeroPedido  := FQuery.FieldByName('NumeroPedido').AsInteger;
+        Produto.CodigoProduto := FQuery.FieldByName('CodigoProduto').AsInteger;
+        Produto.Quantidade    := FQuery.FieldByName('Quantidade').AsInteger;
+        Produto.ValorUnitario := FQuery.FieldByName('ValorUnitario').AsFloat;
+        Produto.ValorTotal    := FQuery.FieldByName('ValorTotal').AsFloat;
+        Produtos.Add(Produto);
+        FQuery.Next;
+      end;
+    end;
+  finally
+    FQuery.Free;
+  end;
+end;
+
+constructor TPedidosController.Create(AConnection: TFDConnection);
+begin
+  FDConnection := AConnection;
+end;
+
+procedure TPedidosController.GravarPedido(Pedido: TPedidoDadosGerais; Produtos: TList<TPedidosProdutos>);
+var
+  FQuery: TFDQuery;
+  Produto: TPedidosProdutos;
+begin
+  FQuery := TFDQuery.Create(nil);
+  try
+    FDConnection := dmConexao.dtmConexao.conexao2;  
+    FQuery.Connection := FDConnection;
+    FDConnection.StartTransaction;
+    
+    try
+      // Grava o Pedido na tabela "Pedidos"
+      FQuery.SQL.Text := 'INSERT INTO pedidodadosgerais (DataEmissao, CodigoCliente, ValorTotal) VALUES (:Data, :Cliente, :Total)';
+      FQuery.ParamByName('Data').AsDateTime   := Pedido.DataEmissao;
+      FQuery.ParamByName('Cliente').AsInteger := Pedido.CodigoCliente;
+      FQuery.ParamByName('Total').AsFloat     := Pedido.ValorTotal;
+      FQuery.ExecSQL;
+
+      // Obtém o Número do Pedido gerado
+//      Pedido.NumeroPedido := FDConnection.GetLastAutoGenValue(Pedido.NumeroPedido):string;
+      
+      // Grava os produtos na tabela "ProdutosPedido"      
+      for Produto in Produtos do
+      begin
+        FQuery.SQL.Text := 'INSERT INTO pedidosprodutos (NumeroPedido, CodigoProduto, Quantidade, ValorUnitario, ValorTotal) ' +
+                            'VALUES (:Pedido, :Produto, :Quantidade, :Unitario, :Total)';
+        FQuery.ParamByName('Pedido').AsInteger := Pedido.NumeroPedido;
+        FQuery.ParamByName('Produto').AsInteger := Produto.CodigoProduto;
+        FQuery.ParamByName('Quantidade').AsInteger := Produto.Quantidade;
+        FQuery.ParamByName('Unitario').AsFloat := Produto.ValorUnitario;
+        FQuery.ParamByName('Total').AsFloat := Produto.ValorTotal;
+        FQuery.ExecSQL;
+      end;
+      FDConnection.Commit;
+    except
+      FDConnection.Rollback;
+      raise;
+    end;
+  finally
+    FQuery.Free;
+  end;
+end;
+
+end.

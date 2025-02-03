@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2025/01/29 07:55:20.000.774,=C:\Users\diego\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2025/01/29 07:56:57.000.550,C:\Users\diego\Desktop\TesteWK2024\Views\PedidosVenda.pas=C:\Users\diego\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2025/01/29 07:56:57.000.550,C:\Users\diego\Desktop\TesteWK2024\Views\PedidosVenda.dfm=C:\Users\diego\Documents\Embarcadero\Studio\Projects\Unit1.dfm</Transaction>
+    <Transaction>2025/01/29 07:57:20.000.821,C:\Users\diego\Desktop\TesteWK2024\Project\PedidosVendas.dproj=C:\Users\diego\Documents\Embarcadero\Studio\Projects\Project1.dproj</Transaction>
+    <Transaction>2025/01/29 09:48:00.000.680,=C:\Users\diego\Desktop\TesteWK2024\Project\Unit1.pas</Transaction>
+    <Transaction>2025/01/29 09:50:39.000.502,C:\Users\diego\Desktop\TesteWK2024\Project\Unit1.pas=C:\Users\diego\Desktop\TesteWK2024\Controllers\PedidoController.pas</Transaction>
+    <Transaction>2025/01/29 10:08:36.000.522,=C:\Users\diego\Desktop\TesteWK2024\Project\Unit1.pas</Transaction>
+    <Transaction>2025/01/29 10:09:59.000.668,C:\Users\diego\Desktop\TesteWK2024\Project\Unit1.pas=C:\Users\diego\Desktop\TesteWK2024\Models\Model.pas</Transaction>
+    <Transaction>2025/01/29 16:28:50.000.126,=C:\Users\diego\Desktop\TesteWK2024\Project\Unit1.pas</Transaction>
+    <Transaction>2025/01/29 16:39:18.000.787,C:\Users\diego\Desktop\TesteWK2024\Project\Unit1.dfm=C:\Users\diego\Desktop\TesteWK2024\Controllers\dmConexao.dfm</Transaction>
+    <Transaction>2025/01/29 16:39:18.000.786,C:\Users\diego\Desktop\TesteWK2024\Project\Unit1.pas=C:\Users\diego\Desktop\TesteWK2024\Controllers\dmConexao.pas</Transaction>
+  </Transactions>
+</BorlandProject>

@@ -1,0 +1,501 @@
+2. Arquivo INI para Conexão
+Arquivo config.ini com os parâmetros de conexão ao banco:
+
+[Database]
+Server=localhost
+Port=3306
+Database=VendaDB
+Username=root
+Password=password
+DriverID=MySQL
+
+
+3. Model (Camadas de Dados)
+Classes Delphi para representar as entidades do banco:
+
+type
+  TCliente = class
+    Codigo: Integer;
+    Nome: string;
+    Cidade: string;
+    UF: string;
+  end;
+
+  TProduto = class
+    Codigo: Integer;
+    Descricao: string;
+    PrecoVenda: Double;
+  end;
+
+  TPedido = class
+    NumeroPedido: Integer;
+    DataEmissao: TDateTime;
+    CodigoCliente: Integer;
+    ValorTotal: Double;
+  end;
+
+  TProdutoPedido = class
+    Id: Integer;
+    NumeroPedido: Integer;
+    CodigoProduto: Integer;
+    Quantidade: Integer;
+    ValorUnitario: Double;
+    ValorTotal: Double;
+  end;
+
+4. Controller
+Implementação das regras de negócios e interação com o banco:
+
+procedure TPedidoController.GravarPedido(Pedido: TPedido; Produtos: TList<TProdutoPedido>);
+begin
+  FDConnection.StartTransaction;
+  try
+    // Grava o Pedido na tabela "Pedidos"
+    FDQuery.SQL.Text := 'INSERT INTO Pedidos (DataEmissao, CodigoCliente, ValorTotal) VALUES (:Data, :Cliente, :Total)';
+    FDQuery.ParamByName('Data').AsDateTime := Pedido.DataEmissao;
+    FDQuery.ParamByName('Cliente').AsInteger := Pedido.CodigoCliente;
+    FDQuery.ParamByName('Total').AsFloat := Pedido.ValorTotal;
+    FDQuery.ExecSQL;
+
+    // Obtém o Número do Pedido gerado
+    Pedido.NumeroPedido := FDConnection.GetLastInsertId;
+
+    // Grava os produtos na tabela "ProdutosPedido"
+    for Produto in Produtos do
+    begin
+      FDQuery.SQL.Text := 'INSERT INTO ProdutosPedido (NumeroPedido, CodigoProduto, Quantidade, ValorUnitario, ValorTotal) ' +
+                          'VALUES (:Pedido, :Produto, :Quantidade, :Unitario, :Total)';
+      FDQuery.ParamByName('Pedido').AsInteger := Pedido.NumeroPedido;
+      FDQuery.ParamByName('Produto').AsInteger := Produto.CodigoProduto;
+      FDQuery.ParamByName('Quantidade').AsInteger := Produto.Quantidade;
+      FDQuery.ParamByName('Unitario').AsFloat := Produto.ValorUnitario;
+      FDQuery.ParamByName('Total').AsFloat := Produto.ValorTotal;
+      FDQuery.ExecSQL;
+    end;
+
+    FDConnection.Commit;
+  except
+    FDConnection.Rollback;
+    raise;
+  end;
+end;
+
+5. View (Tela de Pedidos)
+Descrição da tela principal:
+
+Campos de Entrada:
+
+Campo para selecionar o cliente.
+Grid para exibir e gerenciar os produtos.
+Campo de totalizador no rodapé.
+Botões:
+
+Inserir Produto: Insere os dados do produto no grid.
+Gravar Pedido: Salva os dados no banco de dados.
+Carregar Pedido: Carrega um pedido existente com seus produtos.
+Cancelar Pedido: Remove o pedido e seus produtos do banco.
+
+/*==============================================================================*/
+
+Abaixo está o código completo para o projeto usando Delphi 11, estruturado conforme os requisitos. As partes incluem os Modelos, Controladores, e Formulário Principal (View).
+
+1. Model (Representação de Dados)
+Crie uma unit chamada Model.pas:
+
+unit Model;
+
+interface
+
+type
+  TCliente = class
+  public
+    Codigo: Integer;
+    Nome: string;
+    Cidade: string;
+    UF: string;
+  end;
+
+  TProduto = class
+  public
+    Codigo: Integer;
+    Descricao: string;
+    PrecoVenda: Double;
+  end;
+
+  TPedido = class
+  public
+    NumeroPedido: Integer;
+    DataEmissao: TDateTime;
+    CodigoCliente: Integer;
+    ValorTotal: Double;
+  end;
+
+  TProdutoPedido = class
+  public
+    Id: Integer;
+    NumeroPedido: Integer;
+    CodigoProduto: Integer;
+    Quantidade: Integer;
+    ValorUnitario: Double;
+    ValorTotal: Double;
+  end;
+
+implementation
+
+end.
+
+2. Controller (Lógica de Negócios)
+Crie uma unit chamada Controller.pas:
+
+unit Controller;
+
+interface
+
+uses
+  System.Generics.Collections, Model, FireDAC.Comp.Client;
+
+type
+  TPedidoController = class
+  private
+    FDConnection: TFDConnection;
+  public
+    constructor Create(AConnection: TFDConnection);
+    procedure GravarPedido(Pedido: TPedido; Produtos: TList<TProdutoPedido>);
+    procedure CarregarPedido(NumeroPedido: Integer; out Pedido: TPedido; Produtos: TList<TProdutoPedido>);
+    procedure CancelarPedido(NumeroPedido: Integer);
+  end;
+
+implementation
+
+uses
+  SysUtils;
+
+{ TPedidoController }
+
+constructor TPedidoController.Create(AConnection: TFDConnection);
+begin
+  FDConnection := AConnection;
+end;
+
+procedure TPedidoController.GravarPedido(Pedido: TPedido; Produtos: TList<TProdutoPedido>);
+var
+  FDQuery: TFDQuery;
+  Produto: TProdutoPedido;
+begin
+  FDQuery := TFDQuery.Create(nil);
+  try
+    FDQuery.Connection := FDConnection;
+    FDConnection.StartTransaction;
+    try
+      // Grava o Pedido na tabela "Pedidos"
+      FDQuery.SQL.Text := 'INSERT INTO Pedidos (DataEmissao, CodigoCliente, ValorTotal) VALUES (:Data, :Cliente, :Total)';
+      FDQuery.ParamByName('Data').AsDateTime := Pedido.DataEmissao;
+      FDQuery.ParamByName('Cliente').AsInteger := Pedido.CodigoCliente;
+      FDQuery.ParamByName('Total').AsFloat := Pedido.ValorTotal;
+      FDQuery.ExecSQL;
+
+      // Obtém o Número do Pedido gerado
+      Pedido.NumeroPedido := FDConnection.GetLastAutoIncValue;
+
+      // Grava os produtos na tabela "ProdutosPedido"
+      for Produto in Produtos do
+      begin
+        FDQuery.SQL.Text := 'INSERT INTO ProdutosPedido (NumeroPedido, CodigoProduto, Quantidade, ValorUnitario, ValorTotal) ' +
+                            'VALUES (:Pedido, :Produto, :Quantidade, :Unitario, :Total)';
+        FDQuery.ParamByName('Pedido').AsInteger := Pedido.NumeroPedido;
+        FDQuery.ParamByName('Produto').AsInteger := Produto.CodigoProduto;
+        FDQuery.ParamByName('Quantidade').AsInteger := Produto.Quantidade;
+        FDQuery.ParamByName('Unitario').AsFloat := Produto.ValorUnitario;
+        FDQuery.ParamByName('Total').AsFloat := Produto.ValorTotal;
+        FDQuery.ExecSQL;
+      end;
+
+      FDConnection.Commit;
+    except
+      FDConnection.Rollback;
+      raise;
+    end;
+  finally
+    FDQuery.Free;
+  end;
+end;
+
+procedure TPedidoController.CarregarPedido(NumeroPedido: Integer; out Pedido: TPedido; Produtos: TList<TProdutoPedido>);
+var
+  FDQuery: TFDQuery;
+  Produto: TProdutoPedido;
+begin
+  FDQuery := TFDQuery.Create(nil);
+  try
+    FDQuery.Connection := FDConnection;
+
+    // Carrega os dados do pedido
+    FDQuery.SQL.Text := 'SELECT * FROM Pedidos WHERE NumeroPedido = :Numero';
+    FDQuery.ParamByName('Numero').AsInteger := NumeroPedido;
+    FDQuery.Open;
+
+    if not FDQuery.IsEmpty then
+    begin
+      Pedido := TPedido.Create;
+      Pedido.NumeroPedido := FDQuery.FieldByName('NumeroPedido').AsInteger;
+      Pedido.DataEmissao := FDQuery.FieldByName('DataEmissao').AsDateTime;
+      Pedido.CodigoCliente := FDQuery.FieldByName('CodigoCliente').AsInteger;
+      Pedido.ValorTotal := FDQuery.FieldByName('ValorTotal').AsFloat;
+
+      // Carrega os produtos do pedido
+      FDQuery.SQL.Text := 'SELECT * FROM ProdutosPedido WHERE NumeroPedido = :Numero';
+      FDQuery.ParamByName('Numero').AsInteger := NumeroPedido;
+      FDQuery.Open;
+
+      while not FDQuery.Eof do
+      begin
+        Produto := TProdutoPedido.Create;
+        Produto.Id := FDQuery.FieldByName('Id').AsInteger;
+        Produto.NumeroPedido := FDQuery.FieldByName('NumeroPedido').AsInteger;
+        Produto.CodigoProduto := FDQuery.FieldByName('CodigoProduto').AsInteger;
+        Produto.Quantidade := FDQuery.FieldByName('Quantidade').AsInteger;
+        Produto.ValorUnitario := FDQuery.FieldByName('ValorUnitario').AsFloat;
+        Produto.ValorTotal := FDQuery.FieldByName('ValorTotal').AsFloat;
+        Produtos.Add(Produto);
+        FDQuery.Next;
+      end;
+    end;
+  finally
+    FDQuery.Free;
+  end;
+end;
+
+procedure TPedidoController.CancelarPedido(NumeroPedido: Integer);
+var
+  FDQuery: TFDQuery;
+begin
+  FDQuery := TFDQuery.Create(nil);
+  try
+    FDQuery.Connection := FDConnection;
+    FDConnection.StartTransaction;
+    try
+      // Exclui os produtos do pedido
+      FDQuery.SQL.Text := 'DELETE FROM ProdutosPedido WHERE NumeroPedido = :Numero';
+      FDQuery.ParamByName('Numero').AsInteger := NumeroPedido;
+      FDQuery.ExecSQL;
+
+      // Exclui o pedido
+      FDQuery.SQL.Text := 'DELETE FROM Pedidos WHERE NumeroPedido = :Numero';
+      FDQuery.ParamByName('Numero').AsInteger := NumeroPedido;
+      FDQuery.ExecSQL;
+
+      FDConnection.Commit;
+    except
+      FDConnection.Rollback;
+      raise;
+    end;
+  finally
+    FDQuery.Free;
+  end;
+end;
+
+end.
+
+
+3. View (Formulário Principal)
+Crie um formulário chamado frmPedidos.
+
+Componentes
+Campos para código do cliente e nome do cliente.
+TGrid para os produtos (colunas: código, descrição, quantidade, valor unitário, valor total).
+Botões:
+Inserir Produto
+Gravar Pedido
+Carregar Pedido
+Cancelar Pedido
+Rodapé: Totalizador do pedido.
+
+4. Formulário frmPedidos
+Crie um formulário chamado frmPedidos e adicione os seguintes componentes:
+
+Componentes no Formulário
+TEdit: Para o Código do Cliente (edtClienteCodigo) e Nome do Cliente (edtClienteNome).
+TButton:
+Inserir Produto (btnInserirProduto).
+Gravar Pedido (btnGravarPedido).
+Carregar Pedido (btnCarregarPedido).
+Cancelar Pedido (btnCancelarPedido).
+TGrid: Para exibir os produtos do pedido (gridProdutos).
+Colunas:
+Código do Produto
+Descrição
+Quantidade
+Valor Unitário
+Valor Total
+TLabel: Para o totalizador no rodapé (lblTotal).
+TFDConnection e TFDQuery: Para conexão com o banco.
+
+Código do Formulário
+
+unit frmPedidos;
+
+interface
+
+uses
+  Vcl.Forms, Vcl.StdCtrls, Vcl.Grids, Vcl.Controls, System.Classes,
+  System.Generics.Collections, Model, Controller, FireDAC.Comp.Client,
+  FireDAC.DApt;
+
+type
+  TFormPedidos = class(TForm)
+    edtClienteCodigo: TEdit;
+    edtClienteNome: TEdit;
+    btnInserirProduto: TButton;
+    btnGravarPedido: TButton;
+    btnCarregarPedido: TButton;
+    btnCancelarPedido: TButton;
+    gridProdutos: TStringGrid;
+    lblTotal: TLabel;
+    FDConnection: TFDConnection;
+    FDQuery: TFDQuery;
+
+    procedure FormCreate(Sender: TObject);
+    procedure btnInserirProdutoClick(Sender: TObject);
+    procedure btnGravarPedidoClick(Sender: TObject);
+    procedure btnCarregarPedidoClick(Sender: TObject);
+    procedure btnCancelarPedidoClick(Sender: TObject);
+    procedure AtualizarTotal;
+  private
+    FProdutos: TList<TProdutoPedido>;
+    FController: TPedidoController;
+  public
+    { Public declarations }
+  end;
+
+var
+  FormPedidos: TFormPedidos;
+
+implementation
+
+{$R *.dfm}
+
+procedure TFormPedidos.FormCreate(Sender: TObject);
+begin
+  // Configurações iniciais
+  FProdutos := TList<TProdutoPedido>.Create;
+  FController := TPedidoController.Create(FDConnection);
+
+  // Configuração do Grid
+  gridProdutos.RowCount := 2;
+  gridProdutos.ColCount := 5;
+  gridProdutos.Cells[0, 0] := 'Código';
+  gridProdutos.Cells[1, 0] := 'Descrição';
+  gridProdutos.Cells[2, 0] := 'Quantidade';
+  gridProdutos.Cells[3, 0] := 'Vlr Unitário';
+  gridProdutos.Cells[4, 0] := 'Vlr Total';
+
+  AtualizarTotal;
+end;
+
+procedure TFormPedidos.btnInserirProdutoClick(Sender: TObject);
+var
+  Produto: TProdutoPedido;
+  NovaLinha: Integer;
+begin
+  // Simula entrada de produto (pode ser expandido para abrir outra janela de entrada)
+  Produto := TProdutoPedido.Create;
+  Produto.CodigoProduto := StrToInt(InputBox('Código do Produto', 'Informe o código:', ''));
+  Produto.Quantidade := StrToInt(InputBox('Quantidade', 'Informe a quantidade:', '1'));
+  Produto.ValorUnitario := StrToFloat(InputBox('Valor Unitário', 'Informe o valor unitário:', '0.00'));
+  Produto.ValorTotal := Produto.Quantidade * Produto.ValorUnitario;
+
+  // Adiciona à lista de produtos
+  FProdutos.Add(Produto);
+
+  // Adiciona ao grid
+  NovaLinha := gridProdutos.RowCount;
+  gridProdutos.RowCount := NovaLinha + 1;
+  gridProdutos.Cells[0, NovaLinha - 1] := Produto.CodigoProduto.ToString;
+  gridProdutos.Cells[1, NovaLinha - 1] := 'Descrição Simulada'; // Puxar do banco se necessário
+  gridProdutos.Cells[2, NovaLinha - 1] := Produto.Quantidade.ToString;
+  gridProdutos.Cells[3, NovaLinha - 1] := FormatFloat('0.00', Produto.ValorUnitario);
+  gridProdutos.Cells[4, NovaLinha - 1] := FormatFloat('0.00', Produto.ValorTotal);
+
+  AtualizarTotal;
+end;
+
+procedure TFormPedidos.AtualizarTotal;
+var
+  Total: Double;
+  Produto: TProdutoPedido;
+begin
+  Total := 0;
+  for Produto in FProdutos do
+    Total := Total + Produto.ValorTotal;
+
+  lblTotal.Caption := Format('Total do Pedido: R$ %.2f', [Total]);
+end;
+
+procedure TFormPedidos.btnGravarPedidoClick(Sender: TObject);
+var
+  Pedido: TPedido;
+begin
+  if edtClienteCodigo.Text = '' then
+    raise Exception.Create('Informe o cliente antes de gravar o pedido!');
+
+  // Cria o pedido
+  Pedido := TPedido.Create;
+  try
+    Pedido.DataEmissao := Now;
+    Pedido.CodigoCliente := StrToInt(edtClienteCodigo.Text);
+    Pedido.ValorTotal := StrToFloat(lblTotal.Caption.Replace('Total do Pedido: R$ ', ''));
+
+    // Grava no banco
+    FController.GravarPedido(Pedido, FProdutos);
+    ShowMessage('Pedido gravado com sucesso!');
+  finally
+    Pedido.Free;
+  end;
+end;
+
+procedure TFormPedidos.btnCarregarPedidoClick(Sender: TObject);
+var
+  NumeroPedido: Integer;
+  Pedido: TPedido;
+begin
+  NumeroPedido := StrToInt(InputBox('Carregar Pedido', 'Informe o número do pedido:', ''));
+  Pedido := nil;
+  FProdutos.Clear;
+  try
+    // Carrega o pedido
+    FController.CarregarPedido(NumeroPedido, Pedido, FProdutos);
+
+    if Assigned(Pedido) then
+    begin
+      edtClienteCodigo.Text := Pedido.CodigoCliente.ToString;
+      edtClienteNome.Text := 'Nome do Cliente'; // Simulação
+      AtualizarTotal;
+    end
+    else
+      ShowMessage('Pedido não encontrado!');
+  finally
+    Pedido.Free;
+  end;
+end;
+
+procedure TFormPedidos.btnCancelarPedidoClick(Sender: TObject);
+var
+  NumeroPedido: Integer;
+begin
+  NumeroPedido := StrToInt(InputBox('Cancelar Pedido', 'Informe o número do pedido:', ''));
+  FController.CancelarPedido(NumeroPedido);
+  ShowMessage('Pedido cancelado com sucesso!');
+end;
+
+end.
+
+Observações:
+Configuração do Banco de Dados:
+
+Configure a propriedade ConnectionDefFileName do componente FDConnection para apontar para o arquivo .ini com os parâmetros de conexão.
+Biblioteca MySQL:
+
+Certifique-se de incluir a biblioteca .dll do MySQL no diretório do projeto.
+Customização:
+
+O exemplo simplifica a busca por clientes e produtos. Integre essas funções ao banco para torná-las dinâmicas.

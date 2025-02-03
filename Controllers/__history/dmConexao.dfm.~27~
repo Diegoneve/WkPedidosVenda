@@ -1,0 +1,74 @@
+object dtmConexao: TdtmConexao
+  Height = 404
+  Width = 514
+  object FQuery: TFDQuery
+    Connection = FDConnection
+    SQL.Strings = (
+      'SELECT pp.NumeroPedido'
+      '     , pp.CodigoProduto'
+      #9'  , pp.Quantidade'
+      #9'  , pp.ValorUnitario'
+      #9'  , pp.ValorTotal '
+      '  FROM pedidosprodutos pp;')
+    Left = 32
+    Top = 16
+  end
+  object FDConnection: TFDConnection
+    Params.Strings = (
+      'Database=wk_teste'
+      'ConnectionDef=MySQL80')
+    LoginPrompt = False
+    Left = 408
+    Top = 16
+  end
+  object FDPhysMySQLDriverLink1: TFDPhysMySQLDriverLink
+    VendorLib = 'C:\Users\diego\Desktop\TesteWK2024\Exec\libmysql.dll'
+    Left = 408
+    Top = 80
+  end
+  object DataSource1: TDataSource
+    DataSet = FQuery
+    Left = 32
+    Top = 88
+  end
+  object FDTransaction1: TFDTransaction
+    Connection = FDConnection
+    Left = 288
+    Top = 24
+  end
+  object DataSource2: TDataSource
+    Left = 32
+    Top = 160
+  end
+  object conexao2: TFDConnection
+    Params.Strings = (
+      'Database=wk_teste'
+      'ConnectionDef=MySQL80')
+    LoginPrompt = False
+    Left = 400
+    Top = 168
+  end
+  object qryProdutos: TFDQuery
+    DetailFields = 'descricao;PrecoVenda'
+    Connection = FDConnection
+    SQL.Strings = (
+      'SELECT descricao'
+      '     , PrecoVenda'
+      '  from produtos'
+      ' WHERE codigo = :codigo')
+    Left = 186
+    Top = 168
+    ParamData = <
+      item
+        Name = 'CODIGO'
+        DataType = ftInteger
+        ParamType = ptInput
+        Value = Null
+      end>
+  end
+  object dsProdutos: TDataSource
+    DataSet = qryProdutos
+    Left = 186
+    Top = 232
+  end
+end
